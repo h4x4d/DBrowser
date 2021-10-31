@@ -19,7 +19,7 @@ class Ui_Dialog(object):
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.label = QtWidgets.QLabel(Dialog)
-        self.label.setGeometry(QtCore.QRect(20, 10, 201, 31))
+        self.label.setGeometry(QtCore.QRect(20, 10, 400, 31))
 
         app_icon = QtGui.QIcon()
         app_icon.addFile('img/db.png', QtCore.QSize(16, 16))
@@ -106,7 +106,7 @@ class Ui_Dialog(object):
 
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
-        Dialog.setWindowTitle(_translate("Dialog", "Создание таблицы"))
+        Dialog.setWindowTitle(_translate("Dialog", "Создание и изменение таблиц"))
         self.label.setText(_translate("Dialog", "Создание таблицы"))
         self.name.setPlaceholderText(_translate("Dialog", "Название поля"))
         self.name_2.setPlaceholderText(_translate("Dialog", "Название таблицы"))
@@ -149,7 +149,6 @@ class Ui_Dialog(object):
         self.btn_del.setDisabled(False)
         self.comboBox.setDisabled(False)
         select = self.inb[self.bases.selectedIndexes()[0].row()]
-        print(select)
         self.comboBox.setCurrentText(select[1])
         self.notnull.setChecked(select[2])
         self.pr_k.setChecked(select[3])
@@ -177,7 +176,20 @@ class Ui_Dialog(object):
     def params(self):
         index = self.bases.selectedIndexes()[0].row()
         self.inb[index] = [self.inb[index][0], self.comboBox.currentText(), self.notnull.isChecked(),
-                           self.pr_k.isChecked(), self.ai.isChecked(), self.uniq.isChecked(), self.standart.text()]
+                           [self.pr_k.isChecked() if not self.ai.isChecked() else True][0], self.ai.isChecked(),
+                           self.uniq.isChecked(), self.standart.text()]
+        if self.ai.isChecked():
+            self.pr_k.setChecked(True)
+            for n, j in enumerate(self.inb):
+                if j[3] and self.inb[index][0] != j[0]:
+                    self.inb[n][3] = False
+                    self.inb[n][4] = False
+
+    def opener(self, name, inb):
+        self.inb = inb
+        self.name_2.setText(name)
+        for i in inb:
+            self.comboBox.addItem(i[0])
 
 
 
@@ -354,6 +366,7 @@ class Dbrowser(object):
         self.sql_c.clicked.connect(self.sql_cleaner)
         self.sql_l.clicked.connect(self.sql_loader)
         self.bd_close.clicked.connect(self.deleter_bases)
+        self.bd_redact.clicked.connect(self.base_redactor)
 
     def update_table(self):
         self.changed = {}
@@ -436,8 +449,18 @@ class Dbrowser(object):
         dlg = Ui_Dialog()
         dlg.setupUi(Dialog)
         button = Dialog.exec_()
+        """        self.inb[index] = [self.inb[index][0], self.comboBox.currentText(), self.notnull.isChecked(),
+                           self.pr_k.isChecked(), self.ai.isChecked(), self.uniq.isChecked(), self.standart.text()]"""
         if button:
+            print()
             print(dlg.inb)
+            names = ',\n'.join([f"'{i[0]}' {i[1]} {'NOT NULL' if i[2] else ''} {f'DEFAULT {i[6]}' if i[6] else ''} "
+                                f"{'UNIQUE' if i[5] else ''}" for i in dlg.inb])
+            pkeys = None
+            print(f"""
+                            CREATE TABLE '{dlg.name_2.text()}' (
+                            {names})
+                            """)
 
     def deleter_bases(self):
         n = self.datas.selectedItems()[0].text()
@@ -483,6 +506,15 @@ class Dbrowser(object):
             self.label_4.setStyleSheet("background-color:red;\n"
                                        "border:1px solid black;")
             self.label_4.show()
+
+    def base_redactor(self):
+        i = self.datas.selectedItems()[0].text()
+        i = self.cur.execute(f'PRAGMA table_info({i})').fetchall()
+        Dialog = QtWidgets.QDialog()
+        dlg = Ui_Dialog()
+        dlg.setupUi(Dialog)
+        dlg.label.setText("Редактирование таблицы таблицы")
+        button = Dialog.exec_()
 
 
 def except_hook(cls, exception, traceback):
