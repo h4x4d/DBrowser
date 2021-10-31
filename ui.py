@@ -164,6 +164,7 @@ class Ui_Dialog(object):
             if self.name.text() not in [i[0] for i in self.inb]:
                 self.bases.addItem(self.name.text())
                 self.inb.append([self.name.text(), 'INTEGER', False, False, False, False, None])
+                self.name.setText('')
             else:
                 pass
         else:
@@ -184,6 +185,7 @@ class Ui_Dialog(object):
                 if j[3] and self.inb[index][0] != j[0]:
                     self.inb[n][3] = False
                     self.inb[n][4] = False
+        print(self.inb)
 
     def opener(self, name, inb):
         self.inb = inb
