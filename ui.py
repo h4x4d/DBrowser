@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -177,21 +178,15 @@ class Ui_Dialog(object):
     def params(self):
         index = self.bases.selectedIndexes()[0].row()
         self.inb[index] = [self.inb[index][0], self.comboBox.currentText(), self.notnull.isChecked(),
-                           [self.pr_k.isChecked() if not self.ai.isChecked() else True][0], self.ai.isChecked(),
+                           True if self.ai.isChecked() else self.pr_k.isChecked(), self.ai.isChecked(),
                            self.uniq.isChecked(), self.standart.text()]
-        if self.ai.isChecked():
+        if MainWindow.sender().text() == 'АИ':
             self.pr_k.setChecked(True)
             for n, j in enumerate(self.inb):
                 if j[3] and self.inb[index][0] != j[0]:
                     self.inb[n][3] = False
                     self.inb[n][4] = False
         print(self.inb)
-
-    def opener(self, name, inb):
-        self.inb = inb
-        self.name_2.setText(name)
-        for i in inb:
-            self.comboBox.addItem(i[0])
 
 
 
@@ -295,11 +290,8 @@ class Dbrowser(object):
         self.bd_close = QtWidgets.QPushButton(self.centralwidget)
         self.bd_close.setGeometry(QtCore.QRect(331, 401, 30, 30))
         self.bd_close.setObjectName("bd_close")
-        self.bd_redact = QtWidgets.QPushButton(self.centralwidget)
-        self.bd_redact.setGeometry(QtCore.QRect(303, 401, 30, 30))
-        self.bd_redact.setObjectName("bd_redact")
         self.bd_plus = QtWidgets.QPushButton(self.centralwidget)
-        self.bd_plus.setGeometry(QtCore.QRect(275, 401, 30, 30))
+        self.bd_plus.setGeometry(QtCore.QRect(303, 401, 30, 30))
         self.bd_plus.setObjectName("bd_plus")
         self.label_4 = QtWidgets.QLabel(self.centralwidget)
         self.label_4.setGeometry(QtCore.QRect(30, 210, 330, 21))
@@ -346,8 +338,6 @@ class Dbrowser(object):
         self.redact_s.setIconSize(QSize(20, 20))
         icon = QIcon("img/plus.png")
         self.bd_plus.setIcon(icon)
-        icon = QIcon("img/pen.png")
-        self.bd_redact.setIcon(icon)
         icon = QIcon("img/close.png")
         self.bd_close.setIcon(icon)
 
@@ -368,10 +358,32 @@ class Dbrowser(object):
         self.sql_c.clicked.connect(self.sql_cleaner)
         self.sql_l.clicked.connect(self.sql_loader)
         self.bd_close.clicked.connect(self.deleter_bases)
-        self.bd_redact.clicked.connect(self.base_redactor)
+        self.btn_close.clicked.connect(self.deleter)
+        self.bd_p.clicked.connect(self.line_creator)
+        self.bd_r.clicked.connect(self.baseselected)
+        self.db.itemChanged.connect(self.changer)
+        self.conn = None
+        self.cur = None
+
+    def deleter(self):
+        try:
+            self.datas.clear()
+            self.redact.clear()
+            self.sql.clear()
+            self.label_4.hide()
+            self.db.setRowCount(0)
+            self.db.setColumnCount(0)
+            self.comboBox.clear()
+            self.changed = set()
+            self.changerworking = 0
+            self.columns = []
+            self.conn.close()
+            self.cur = None
+            self.conn = None
+        except:
+            pass
 
     def update_table(self):
-        self.changed = {}
         self.deleted = {}
         self.datas.clear()
         self.comboBox.clear()
@@ -382,14 +394,15 @@ class Dbrowser(object):
             self.comboBox.addItem(i)
 
     def table(self):
+        self.deleter()
         fname = QtWidgets.QFileDialog.getOpenFileName(
             MainWindow, 'Открыть базу данных', '',
             'База данных (*.db);;Базы данных (*.sqlite);;Все файлы (*)')[0]
-        self.db.itemChanged.connect(self.passer)
+        self.fname = fname
         self.conn = sqlite3.connect(fname)
         self.cur = self.conn.cursor()
         self.update_table()
-        self.changed = {}
+        self.changed = set()
         self.db.itemChanged.connect(self.changer)
 
     def baseselected(self):
@@ -398,17 +411,18 @@ class Dbrowser(object):
             return
 
         self.db.setRowCount(0)
-        data = self.cur.execute(f"""SELECT * FROM {a}""").fetchall()
+        data = self.cur.execute(f"""SELECT * FROM '{a}'""").fetchall()
         column = [i[0] for i in self.cur.description]
         self.db.setColumnCount(len(column))
         column = [i for i in column]
         self.columns = column
+        self.changerworking = 1
         self.db.setHorizontalHeaderLabels(column)
-        self.changed = {}
         for i, row in enumerate(data):
             self.db.insertRow(i)
             for j, elem in enumerate(row):
                 self.db.setItem(i, j, QTableWidgetItem(str(elem)))
+        self.changerworking = 0
 
 
     def editor(self):
@@ -425,24 +439,30 @@ class Dbrowser(object):
         self.redact.setText('\n'.join(n))
 
     def changer(self, changed):
-        i = [self.db.row(changed), self.db.column(changed), changed.text()]
-        base = self.cur.execute(f"""SELECT * FROM {self.comboBox.currentText()}""").fetchall()[i[0]]
-        a = f"""UPDATE {self.comboBox.currentText()} SET {self.columns[i[1]]} = '{i[2]}' WHERE """
-        b = ' AND '.join([f'{self.columns[j]} = "{i}"' for j, i in enumerate(base)])
-        a = a + b
-        self.cur.execute(a)
+        if not self.changerworking:
+            i = [self.db.row(changed), self.db.column(changed), changed.text()]
+            base = self.cur.execute(f"""SELECT * FROM '{self.comboBox.currentText()}'""").fetchall()[i[0]]
+            a = f"""UPDATE "{self.comboBox.currentText()}" SET "{self.columns[i[1]]}" = "{i[2]}" WHERE
+            ROWID = (SELECT MIN(ROWID) FROM "{self.comboBox.currentText()}" WHERE """
+            b = ' AND '.join([f'"{self.columns[j]}" = "{i}"' if i is not None else f'"{self.columns[j]}" IS NULL'
+                              for j, i in enumerate(base) ])
+            a = a + b + ')'
+            self.cur.execute(a)
+            self.changed.add(a)
 
     def saver(self):
+        for i in self.changed:
+            self.cur.execute(i)
         self.conn.commit()
 
-    def passer(self):
-        pass
-
     def creator(self):
+        self.deleter()
         fname = QtWidgets.QFileDialog.getSaveFileName(
             MainWindow, 'Открыть базу данных', '',
             'База данных (*.db);;Базы данных (*.sqlite);;Все файлы (*)')[0]
-
+        self.fname = fname
+        self.changed = set()
+        os.remove(fname)
         self.conn = sqlite3.connect(fname)
         self.cur = self.conn.cursor()
 
@@ -451,23 +471,31 @@ class Dbrowser(object):
         dlg = Ui_Dialog()
         dlg.setupUi(Dialog)
         button = Dialog.exec_()
-        """        self.inb[index] = [self.inb[index][0], self.comboBox.currentText(), self.notnull.isChecked(),
-                           self.pr_k.isChecked(), self.ai.isChecked(), self.uniq.isChecked(), self.standart.text()]"""
         if button:
-            print()
-            print(dlg.inb)
             names = ',\n'.join([f"'{i[0]}' {i[1]} {'NOT NULL' if i[2] else ''} {f'DEFAULT {i[6]}' if i[6] else ''} "
-                                f"{'UNIQUE' if i[5] else ''}" for i in dlg.inb])
-            pkeys = None
-            print(f"""
-                            CREATE TABLE '{dlg.name_2.text()}' (
-                            {names})
-                            """)
+                                f"{'UNIQUE' if i[5] else ''} {f'DEFAULT {i[6]}' if i[6] else ''}" for i in dlg.inb])
+            pkeys = []
+            for i in dlg.inb:
+                if i[3] and i[4]:
+                    pkeys = f'PRIMARY KEY("{i[0]}" AUTOINCREMENT)'
+                    break
+                elif i[3]:
+                    pkeys.append(f'"{i[0]}"')
+            if not pkeys:
+                pkeys = ''
+            elif type(pkeys) == list:
+                pkeys = f'PRIMARY KEY({",".join(pkeys)})'
+
+            self.cur.execute(f"""CREATE TABLE '{dlg.name_2.text()}' (
+                    {names}{',' if pkeys else ''}
+                    {pkeys});
+                    """)
+            self.update_table()
 
     def deleter_bases(self):
         n = self.datas.selectedItems()[0].text()
         self.cur.execute(f"""PRAGMA foreign_keys = OFF;""")
-        self.cur.execute(f"""DROP TEMPORARY TABLE {n};""")
+        self.cur.execute(f"""DROP TABLE '{n}';""")
         self.cur.execute("""PRAGMA foreign_keys = ON;""")
         self.update_table()
 
@@ -482,21 +510,25 @@ class Dbrowser(object):
             a = self.sql.toPlainText()
             n = self.cur.execute(a)
             if "select" in a.lower():
+                self.changerworking = 1
                 data = n.fetchall()
                 column = [i[0] for i in self.cur.description]
                 self.db.setColumnCount(len(column))
                 column = [i for i in column]
                 self.columns = column
                 self.db.setHorizontalHeaderLabels(column)
-                self.changed = {}
                 for i, row in enumerate(data):
                     self.db.insertRow(i)
                     for j, elem in enumerate(row):
                         self.db.setItem(i, j, QTableWidgetItem(str(elem)))
+            else:
+                self.changerworking = 1
+                self.update_table()
             self.label_4.setText('Запрос выполнен успешно!')
             self.label_4.show()
             self.label_4.setStyleSheet("background-color:lightgreen;\n"
                                        "border:1px solid black;")
+            self.changerworking = 0
 
         except AttributeError:
             self.label_4.setText('Кажется, вы не открыли базу данных...')
@@ -509,15 +541,20 @@ class Dbrowser(object):
                                        "border:1px solid black;")
             self.label_4.show()
 
-    def base_redactor(self):
-        i = self.datas.selectedItems()[0].text()
-        i = self.cur.execute(f'PRAGMA table_info({i})').fetchall()
-        Dialog = QtWidgets.QDialog()
-        dlg = Ui_Dialog()
-        dlg.setupUi(Dialog)
-        dlg.label.setText("Редактирование таблицы таблицы")
-        button = Dialog.exec_()
 
+
+    def line_creator(self):
+        selected = self.comboBox.currentText()
+        self.cur.execute(f'INSERT INTO "{self.comboBox.currentText()}" DEFAULT VALUES;')
+        self.changerworking = 1
+        self.update_table()
+        self.changerworking = 0
+        self.comboBox.setCurrentText(selected)
+
+    def line_deleter(self):
+        selected = self.comboBox.currentText()
+        self.cur.execute(f"""DELETE from {selected}
+                            WHERE ROWID = (SELECT MIN(ROWID) FROM {selected} WHERE "n" IS NULL)""")
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
