@@ -10,7 +10,8 @@ from PyQt5.QtWidgets import QLabel, QStyle, QTableWidgetItem
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(459, 367)
+        Dialog.setFixedWidth(459)
+        Dialog.setFixedHeight(367)
         font = QtGui.QFont()
         font.setFamily("Golos Text Medium")
         Dialog.setFont(font)
@@ -104,6 +105,12 @@ class Ui_Dialog(object):
         self.buttonBox.accepted.connect(Dialog.accept)
         self.buttonBox.rejected.connect(Dialog.reject)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
+        self.error_label = QtWidgets.QLabel(Dialog)
+        self.error_label.setGeometry(QtCore.QRect(20, 300, 421, 21))
+        self.error_label.setAutoFillBackground(False)
+        self.error_label.setStyleSheet("background-color:red;\nborder:1px solid black;")
+        self.error_label.setObjectName("error_label")
+        self.error_label.hide()
 
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
@@ -140,6 +147,13 @@ class Ui_Dialog(object):
         self.standart.textChanged.connect(self.params)
         self.comboBox.currentTextChanged.connect(self.params)
 
+        icon = QIcon("img/plus.png")
+        self.btn_create.setIcon(icon)
+        self.btn_create.setIconSize(QSize(15, 15))
+        icon = QIcon("img/close.png")
+        self.btn_del.setIcon(icon)
+        self.btn_del.setIconSize(QSize(13, 13))
+
 
     def selection(self):
         self.ai.setDisabled(False)
@@ -166,10 +180,13 @@ class Ui_Dialog(object):
                 self.bases.addItem(self.name.text())
                 self.inb.append([self.name.text(), 'INTEGER', False, False, False, False, None])
                 self.name.setText('')
+                self.error_label.hide()
             else:
-                pass
+                self.error_label.setText('Кажется, название повторяется')
+                self.error_label.show()
         else:
-            pass
+            self.error_label.setText('Кажется, вы не указали название')
+            self.error_label.show()
 
     def deleter(self):
         del self.inb[self.bases.selectedIndexes()[0].row()]
@@ -193,7 +210,8 @@ class Ui_Dialog(object):
 class Dbrowser(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("DBrowser")
-        MainWindow.resize(750, 650)
+        MainWindow.setFixedHeight(650)
+        MainWindow.setFixedWidth(750)
         app_icon = QtGui.QIcon()
 
         app_icon.addFile('img/db.png', QtCore.QSize(16, 16))
@@ -307,7 +325,6 @@ class Dbrowser(object):
 
 
     def retranslateUi(self, MainWindow):
-        icon = QIcon("img/bx-window-close 2.png")
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "DBrowser"))
         self.label.setText(_translate("MainWindow", "Выполнение SQL кода: "))
@@ -362,11 +379,16 @@ class Dbrowser(object):
         self.bd_p.clicked.connect(self.line_creator)
         self.bd_r.clicked.connect(self.baseselected)
         self.db.itemChanged.connect(self.changer)
+        self.bd_c.clicked.connect(self.line_deleter)
+        self.btn_refresh.clicked.connect(self.update_table)
+        self.redact_s.clicked.connect(self.update_button)
         self.conn = None
         self.cur = None
+        self.selected_index = []
 
     def deleter(self):
         try:
+            self.selected_index = []
             self.datas.clear()
             self.redact.clear()
             self.sql.clear()
@@ -374,7 +396,7 @@ class Dbrowser(object):
             self.db.setRowCount(0)
             self.db.setColumnCount(0)
             self.comboBox.clear()
-            self.changed = set()
+            
             self.changerworking = 0
             self.columns = []
             self.conn.close()
@@ -402,7 +424,7 @@ class Dbrowser(object):
         self.conn = sqlite3.connect(fname)
         self.cur = self.conn.cursor()
         self.update_table()
-        self.changed = set()
+        
         self.db.itemChanged.connect(self.changer)
 
     def baseselected(self):
@@ -426,17 +448,14 @@ class Dbrowser(object):
 
 
     def editor(self):
-        b = [[i.column(), i.row()] for i in self.db.selectedIndexes()]
-        res = {}
-        for i in b:
-            if i[1] in res:
-                res[i[1]].append(self.db.item(i[1], i[0]).text())
-            else:
-                res[i[1]] = [self.db.item(i[1], i[0]).text()]
-        n = []
-        for i in res:
-            n.append('; '.join(res[i]))
-        self.redact.setText('\n'.join(n))
+        b = [[i.row(), i.column()] for i in self.db.selectedIndexes()]
+        if len(b) == 1:
+            self.selected_index = b[0]
+            self.redact.setText(self.db.item(b[0][0], b[0][1]).text())
+        elif len(b) > 0:
+            self.redact.setText('Выберите не больше 1 объекта для редактирования!')
+        else:
+            self.redact.setText('')
 
     def changer(self, changed):
         if not self.changerworking:
@@ -448,11 +467,22 @@ class Dbrowser(object):
                               for j, i in enumerate(base) ])
             a = a + b + ')'
             self.cur.execute(a)
-            self.changed.add(a)
+
+    def update_button(self):
+        if self.selected_index:
+            selected = self.comboBox.currentText()
+            base = self.cur.execute(f"""SELECT * FROM '{selected}'""").fetchall()[
+                self.selected_index[0]]
+            a = f"""UPDATE "{selected}" SET "{self.columns[self.selected_index[1]]}" = 
+            "{self.redact.toPlainText()}" WHERE
+                        ROWID = (SELECT MIN(ROWID) FROM "{selected}" WHERE """
+            b = ' AND '.join([f'"{self.columns[j]}" = "{i}"' if i is not None else f'"{self.columns[j]}" IS NULL'
+                              for j, i in enumerate(base)])
+            a = a + b + ')'
+            self.cur.execute(a)
+            self.update_table()
 
     def saver(self):
-        for i in self.changed:
-            self.cur.execute(i)
         self.conn.commit()
 
     def creator(self):
@@ -461,8 +491,8 @@ class Dbrowser(object):
             MainWindow, 'Открыть базу данных', '',
             'База данных (*.db);;Базы данных (*.sqlite);;Все файлы (*)')[0]
         self.fname = fname
-        self.changed = set()
-        os.remove(fname)
+        if os.path.exists(fname):
+            os.remove(fname)
         self.conn = sqlite3.connect(fname)
         self.cur = self.conn.cursor()
 
@@ -541,20 +571,36 @@ class Dbrowser(object):
                                        "border:1px solid black;")
             self.label_4.show()
 
-
-
     def line_creator(self):
+        try:
+            selected = self.comboBox.currentText()
+            self.cur.execute(f'INSERT INTO "{self.comboBox.currentText()}" DEFAULT VALUES;')
+            self.changerworking = 1
+            self.update_table()
+            self.changerworking = 0
+            self.comboBox.setCurrentText(selected)
+        except sqlite3.IntegrityError:
+            self.cur.execute(f"""INSERT INTO "{self.comboBox.currentText()}"({','.join([f'"{i}"' for i in 
+                                                                                        self.columns])})
+                                VALUES({','.join(['""' for i in self.columns])})""")
+
+    def line_deleter(self):
         selected = self.comboBox.currentText()
-        self.cur.execute(f'INSERT INTO "{self.comboBox.currentText()}" DEFAULT VALUES;')
+        base = self.db.selectedIndexes()
+        base = [i.row() for i in base]
+        n = self.cur.execute(f"SELECT * FROM {selected}").fetchall()
+        for i in base:
+            nn = n[i]
+            a = f"""DELETE from {selected} WHERE ROWID = (SELECT MIN(ROWID) FROM {selected} WHERE """
+            b = ' AND '.join([f'"{self.columns[j]}" = "{i}"' if i is not None else f'"{self.columns[j]}" IS NULL'
+                              for j, i in enumerate(nn)])
+            a = a + b + ')'
+            self.cur.execute(a)
         self.changerworking = 1
         self.update_table()
         self.changerworking = 0
         self.comboBox.setCurrentText(selected)
 
-    def line_deleter(self):
-        selected = self.comboBox.currentText()
-        self.cur.execute(f"""DELETE from {selected}
-                            WHERE ROWID = (SELECT MIN(ROWID) FROM {selected} WHERE "n" IS NULL)""")
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
