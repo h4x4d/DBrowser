@@ -2,9 +2,6 @@ import os
 import sqlite3
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QLabel, QStyle, QTableWidgetItem
 
 
 class Ui_Dialog(object):
@@ -18,7 +15,7 @@ class Ui_Dialog(object):
         self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
         self.buttonBox.setGeometry(QtCore.QRect(100, 330, 341, 32))
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.label = QtWidgets.QLabel(Dialog)
         self.label.setGeometry(QtCore.QRect(20, 10, 400, 31))
@@ -147,13 +144,12 @@ class Ui_Dialog(object):
         self.standart.textChanged.connect(self.params)
         self.comboBox.currentTextChanged.connect(self.params)
 
-        icon = QIcon("img/plus.png")
+        icon = QtGui.QIcon("img/plus.png")
         self.btn_create.setIcon(icon)
-        self.btn_create.setIconSize(QSize(15, 15))
-        icon = QIcon("img/close.png")
+        self.btn_create.setIconSize(QtCore.QSize(15, 15))
+        icon = QtGui.QIcon("img/close.png")
         self.btn_del.setIcon(icon)
-        self.btn_del.setIconSize(QSize(13, 13))
-
+        self.btn_del.setIconSize(QtCore.QSize(13, 13))
 
     def selection(self):
         self.ai.setDisabled(False)
@@ -204,7 +200,6 @@ class Ui_Dialog(object):
                     self.inb[n][3] = False
                     self.inb[n][4] = False
         print(self.inb)
-
 
 
 class Dbrowser(object):
@@ -323,47 +318,46 @@ class Dbrowser(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "DBrowser"))
         self.label.setText(_translate("MainWindow", "Выполнение SQL кода: "))
         self.label_2.setText(_translate("MainWindow", "Заполнение таблицы:"))
         self.label_3.setText(_translate("MainWindow", "Изменение структуры:"))
-        icon = QIcon("img/create-bd.png")
+        icon = QtGui.QIcon("img/create-bd.png")
         self.btn_create.setIcon(icon)
-        icon = QIcon("img/open_bd.png")
+        icon = QtGui.QIcon("img/open_bd.png")
         self.btn_load.setIcon(icon)
-        icon = QIcon("img/refresh_bd.png")
+        icon = QtGui.QIcon("img/refresh_bd.png")
         self.btn_refresh.setIcon(icon)
-        icon = QIcon("img/close_bd.png")
+        icon = QtGui.QIcon("img/close_bd.png")
         self.btn_close.setIcon(icon)
-        icon = QIcon("img/save_bd.png")
+        icon = QtGui.QIcon("img/save_bd.png")
         self.btn_save.setIcon(icon)
-        self.btn_create.setIconSize(QSize(22, 22))
-        self.btn_save.setIconSize(QSize(22, 22))
-        self.btn_refresh.setIconSize(QSize(22, 22))
-        self.btn_close.setIconSize(QSize(22, 22))
-        self.btn_load.setIconSize(QSize(22, 22))
+        self.btn_create.setIconSize(QtCore.QSize(22, 22))
+        self.btn_save.setIconSize(QtCore.QSize(22, 22))
+        self.btn_refresh.setIconSize(QtCore.QSize(22, 22))
+        self.btn_close.setIconSize(QtCore.QSize(22, 22))
+        self.btn_load.setIconSize(QtCore.QSize(22, 22))
 
-        icon = QIcon("img/run.png")
+        icon = QtGui.QIcon("img/run.png")
         self.sql_l.setIcon(icon)
-        icon = QIcon("img/close.png")
+        icon = QtGui.QIcon("img/close.png")
         self.sql_c.setIcon(icon)
-        icon = QIcon("img/save.png")
+        icon = QtGui.QIcon("img/save.png")
         self.redact_s.setIcon(icon)
-        self.redact_s.setIconSize(QSize(20, 20))
-        icon = QIcon("img/plus.png")
+        self.redact_s.setIconSize(QtCore.QSize(20, 20))
+        icon = QtGui.QIcon("img/plus.png")
         self.bd_plus.setIcon(icon)
-        icon = QIcon("img/close.png")
+        icon = QtGui.QIcon("img/close.png")
         self.bd_close.setIcon(icon)
 
-        icon = QIcon("img/refresh.png")
+        icon = QtGui.QIcon("img/refresh.png")
         self.bd_r.setIcon(icon)
-        self.bd_r.setIconSize(QSize(22, 22))
-        icon = QIcon("img/plus.png")
+        self.bd_r.setIconSize(QtCore.QSize(22, 22))
+        icon = QtGui.QIcon("img/plus.png")
         self.bd_p.setIcon(icon)
-        icon = QIcon("img/close.png")
+        icon = QtGui.QIcon("img/close.png")
         self.bd_c.setIcon(icon)
         self.btn_load.clicked.connect(self.table)
         self.db.itemSelectionChanged.connect(self.editor)
@@ -443,9 +437,8 @@ class Dbrowser(object):
         for i, row in enumerate(data):
             self.db.insertRow(i)
             for j, elem in enumerate(row):
-                self.db.setItem(i, j, QTableWidgetItem(str(elem)))
+                self.db.setItem(i, j, QtWidgets.QTableWidgetItem(str(elem)))
         self.changerworking = 0
-
 
     def editor(self):
         b = [[i.row(), i.column()] for i in self.db.selectedIndexes()]
@@ -464,7 +457,7 @@ class Dbrowser(object):
             a = f"""UPDATE "{self.comboBox.currentText()}" SET "{self.columns[i[1]]}" = "{i[2]}" WHERE
             ROWID = (SELECT MIN(ROWID) FROM "{self.comboBox.currentText()}" WHERE """
             b = ' AND '.join([f'"{self.columns[j]}" = "{i}"' if i is not None else f'"{self.columns[j]}" IS NULL'
-                              for j, i in enumerate(base) ])
+                              for j, i in enumerate(base)])
             a = a + b + ')'
             self.cur.execute(a)
 
@@ -550,7 +543,7 @@ class Dbrowser(object):
                 for i, row in enumerate(data):
                     self.db.insertRow(i)
                     for j, elem in enumerate(row):
-                        self.db.setItem(i, j, QTableWidgetItem(str(elem)))
+                        self.db.setItem(i, j, QtWidgets.QTableWidgetItem(str(elem)))
             else:
                 self.changerworking = 1
                 self.update_table()
@@ -565,7 +558,7 @@ class Dbrowser(object):
             self.label_4.setStyleSheet("background-color:red;\n"
                                        "border:1px solid black;")
             self.label_4.show()
-        except sqlite3.OperationalError as e:
+        except sqlite3.OperationalError:
             self.label_4.setText('Где-то в запросе ошибка...')
             self.label_4.setStyleSheet("background-color:red;\n"
                                        "border:1px solid black;")
