@@ -580,8 +580,6 @@ class Dbrowser(object):
             self.changerworking = 0
             self.comboBox.setCurrentText(selected)
         except sqlite3.IntegrityError:
-
-            print(self.cur.execute(f"""PRAGMA table_info "{selected}" """).fetchall())
             self.cur.execute(f"""INSERT INTO "{self.comboBox.currentText()}"({','.join([f'"{i}"' for i in 
                                                                                         self.columns])})
                                 VALUES({','.join(['"0"' for _ in self.columns])})""")
