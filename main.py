@@ -193,13 +193,19 @@ class Ui_Dialog(object):
         self.inb[index] = [self.inb[index][0], self.comboBox.currentText(), self.notnull.isChecked(),
                            True if self.ai.isChecked() else self.pr_k.isChecked(), self.ai.isChecked(),
                            self.uniq.isChecked(), self.standart.text()]
-        if MainWindow.sender().text() == 'АИ':
-            self.pr_k.setChecked(True)
-            for n, j in enumerate(self.inb):
-                if j[3] and self.inb[index][0] != j[0]:
-                    self.inb[n][3] = False
-                    self.inb[n][4] = False
-        print(self.inb)
+        if type(MainWindow.sender()) != QtWidgets.QComboBox:
+            if MainWindow.sender().text() == 'АИ' and self.inb[index][4]:
+                self.pr_k.setChecked(True)
+                for n, j in enumerate(self.inb):
+                    if j[4] and self.inb[index][0] != j[0]:
+                        self.inb[n][3] = False
+                        self.inb[n][4] = False
+
+            if MainWindow.sender().text() == 'ПК' and self.inb[index][3] and not self.inb[index][4]:
+                for n, j in enumerate(self.inb):
+                    if j[4] and self.inb[index][0] != j[0]:
+                        self.inb[index][3] = False
+                        self.pr_k.setChecked(False)
 
 
 class Dbrowser(object):
@@ -474,6 +480,7 @@ class Dbrowser(object):
             a = a + b + ')'
             self.cur.execute(a)
             self.update_table()
+            self.comboBox.setCurrentText(selected)
 
     def saver(self):
         self.conn.commit()
@@ -573,18 +580,20 @@ class Dbrowser(object):
             self.changerworking = 0
             self.comboBox.setCurrentText(selected)
         except sqlite3.IntegrityError:
+
+            print(self.cur.execute(f"""PRAGMA table_info "{selected}" """).fetchall())
             self.cur.execute(f"""INSERT INTO "{self.comboBox.currentText()}"({','.join([f'"{i}"' for i in 
                                                                                         self.columns])})
-                                VALUES({','.join(['""' for i in self.columns])})""")
+                                VALUES({','.join(['"0"' for _ in self.columns])})""")
 
     def line_deleter(self):
         selected = self.comboBox.currentText()
         base = self.db.selectedIndexes()
         base = [i.row() for i in base]
-        n = self.cur.execute(f"SELECT * FROM {selected}").fetchall()
+        n = self.cur.execute(f'SELECT * FROM "{selected}"').fetchall()
         for i in base:
             nn = n[i]
-            a = f"""DELETE from {selected} WHERE ROWID = (SELECT MIN(ROWID) FROM {selected} WHERE """
+            a = f"""DELETE from {selected} WHERE ROWID = (SELECT MIN(ROWID) FROM "{selected}" WHERE """
             b = ' AND '.join([f'"{self.columns[j]}" = "{i}"' if i is not None else f'"{self.columns[j]}" IS NULL'
                               for j, i in enumerate(nn)])
             a = a + b + ')'
