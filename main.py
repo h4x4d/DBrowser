@@ -580,9 +580,44 @@ class Dbrowser(object):
             self.changerworking = 0
             self.comboBox.setCurrentText(selected)
         except sqlite3.IntegrityError:
-            self.cur.execute(f"""INSERT INTO "{self.comboBox.currentText()}"({','.join([f'"{i}"' for i in 
-                                                                                        self.columns])})
-                                VALUES({','.join(['"0"' for _ in self.columns])})""")
+            fields = self.cur.execute(
+                f"""SELECT SQL FROM sqlite_master where type='table' and name ='{self.comboBox.currentText()}'""").fetchall()[
+                0][0].split('\n')
+            insert_fields = []
+            insert_values = []
+            for field in fields:
+                params = field.split()
+                if params[0][1:-1] == self.comboBox.currentText() + 'Id':
+                    continue
+                if params[0][0] == '[':
+                    if params[1][-1] == ',':
+                        continue
+                    else:
+                        field_type = params[1]
+                    field_name = params[0][1:-1]
+                    insert_fields.append(field_name)
+                    field_constraint = ""
+                    if field_type == 'INTEGER' or field_type.find('INT') == 0 or field_type == 'TINYINT' or \
+                            field_type == 'SMALLINT' or field_type == 'MEDIUMINT' or field_type == 'BIGINT' or \
+                            field_type == 'UNSIGNED BIG INT':
+                        field_constraint += "1"
+                    if field_type == 'DATETIME' or field_type == 'DATE':
+                        field_constraint += "CURRENT_TIMESTAMP"
+                    if field_type.find('NUMERIC') == 0 or field_type.find('DECIMAL') == 0 or \
+                            field_type.find('BOOLEAN') == 0:
+                        field_constraint += "0"
+                    if field_type.find('NVARCHAR') == 0 or field_type.find('CHARACTER') == 0 or \
+                            field_type.find('VARCHAR') == 0 or field_type.find('VARYING CHARACTER') == 0 or \
+                            field_type.find('NCHAR') == 0 or field_type.find('NATIVE CHARACTER') == 0 or \
+                            field_type == 'TEXT' or field_type == 'CLOB':
+                        field_constraint += "' '"
+                    insert_values.append(field_constraint)
+            a = f"""INSERT INTO "{self.comboBox.currentText()}" ({','.join([f'"{i}"' for i in
+                                                                            insert_fields])})
+                                            VALUES({','.join([f'{i}' for i in insert_values])})"""
+            self.cur.execute(a)
+            self.update_table()
+            self.comboBox.setCurrentText(selected)
 
     def line_deleter(self):
         selected = self.comboBox.currentText()
