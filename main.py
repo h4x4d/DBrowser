@@ -1,3 +1,4 @@
+import csv
 import os
 import sqlite3
 import sys
@@ -236,7 +237,7 @@ class Dbrowser(object):
         self.db.setColumnCount(0)
         self.db.setRowCount(0)
         self.comboBox = QtWidgets.QComboBox(self.centralwidget)
-        self.comboBox.setGeometry(QtCore.QRect(380, 30, 220, 30))
+        self.comboBox.setGeometry(QtCore.QRect(380, 30, 181, 30))
         self.comboBox.setObjectName("comboBox")
         self.bd_r = QtWidgets.QPushButton(self.centralwidget)
         self.bd_r.setGeometry(QtCore.QRect(610, 30, 30, 30))
@@ -247,6 +248,9 @@ class Dbrowser(object):
         self.bd_c = QtWidgets.QPushButton(self.centralwidget)
         self.bd_c.setGeometry(QtCore.QRect(690, 30, 30, 30))
         self.bd_c.setObjectName("bd_c")
+        self.bd_csv = QtWidgets.QPushButton(self.centralwidget)
+        self.bd_csv.setGeometry(QtCore.QRect(570, 30, 30, 30))
+        self.bd_csv.setObjectName("bd_scv")
         self.btn_create = QtWidgets.QPushButton(self.centralwidget)
         self.btn_create.setGeometry(QtCore.QRect(30, 30, 30, 30))
         self.btn_create.setObjectName("btn_create")
@@ -365,6 +369,9 @@ class Dbrowser(object):
         self.bd_p.setIcon(icon)
         icon = QtGui.QIcon("img/close.png")
         self.bd_c.setIcon(icon)
+        icon = QtGui.QIcon("img/csv.png")
+        self.bd_csv.setIconSize(QtCore.QSize(22, 22))
+        self.bd_csv.setIcon(icon)
         self.btn_load.clicked.connect(self.table)
         self.db.itemSelectionChanged.connect(self.editor)
 
@@ -380,6 +387,7 @@ class Dbrowser(object):
         self.bd_r.clicked.connect(self.baseselected)
         self.db.itemChanged.connect(self.changer)
         self.bd_c.clicked.connect(self.line_deleter)
+        self.bd_csv.clicked.connect(self.csv_from_table)
         self.btn_refresh.clicked.connect(self.update_table)
         self.redact_s.clicked.connect(self.update_button)
         self.conn = None
@@ -635,6 +643,19 @@ class Dbrowser(object):
         self.update_table()
         self.changerworking = 0
         self.comboBox.setCurrentText(selected)
+
+    def csv_from_table(self):
+        fname = QtWidgets.QFileDialog.getSaveFileName(
+            MainWindow, 'Сохранить CSV файл', '',
+            'CSV файлы (*.csv);;Текстовые файлы (*.txt);;Все файлы (*)')[0]
+        if os.path.exists(fname):
+            os.remove(fname)
+        f = open(fname, 'w', encoding='utf-8')
+        write = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        data = self.cur.execute(f'SELECT * FROM "{self.comboBox.currentText()}"')
+        write.writerow(self.columns)
+        for i in data:
+            write.writerow(i)
 
 
 def except_hook(cls, exception, traceback):
