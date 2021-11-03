@@ -658,15 +658,10 @@ class Dbrowser(object):
             write.writerow(i)
 
 
-def except_hook(cls, exception, traceback):
-    sys.__excepthook__(cls, exception, traceback)
-
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Dbrowser()
     ui.setupUi(MainWindow)
     MainWindow.show()
-    sys.excepthook = except_hook
     sys.exit(app.exec_())
