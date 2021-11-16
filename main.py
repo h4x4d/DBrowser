@@ -98,7 +98,6 @@ class Ui_Dialog(object):
         font.setPointSize(9)
         self.pr_k.setFont(font)
         self.pr_k.setObjectName("pr_k")
-
         self.retranslateUi(Dialog)
         self.buttonBox.accepted.connect(Dialog.accept)
         self.buttonBox.rejected.connect(Dialog.reject)
